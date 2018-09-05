@@ -13,7 +13,10 @@ replicas: 1
 operator:
   # spilo image
   image: hub.global.cloud.sap/monsoon/spilo
-  imageTag: "20180629092110"
+  imageTag: "20180823154302"
+  workers: 8
+  resync_period: 3m
+  pod_label_wait_timeout: 5m
 
 serviceaccount:
   create: true
