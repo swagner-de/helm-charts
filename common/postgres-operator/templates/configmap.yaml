@@ -25,7 +25,6 @@ data:
   cluster_labels: application:spilo
   cluster_name_label: version
 
-  node_eol_label: {{ .Values.operator.node_eol_label | default "lifecycle-status:pending-decommission" }}
   node_readiness_label: {{ .Values.operator.node_readiness_label | default "" }}
 
   # pod-disruption-budget?
@@ -38,9 +37,6 @@ data:
   ready_wait_interval: {{ .Values.operator.ready_wait_interval | default "3s" }}
   ready_wait_timeout: {{ .Values.operator.ready_wait_timeout | default "30s" }}
 
-  # postgres k8s service type switch ?
-  enable_load_balancer: "false"
-  # wtf.. logging tells to use these, but once you do and set them to 'false' it starts to create loadbalancers
   enable_master_load_balancer: "false"
   enable_replica_load_balancer: "false"
 
@@ -57,12 +53,6 @@ data:
   # to enable oAuth postgres access
   enable_teams_api: "false"
   enable_team_superuser: "false"
-  #team_admin_role: "admin"
-  #teams_api_url: http://fake-teams-api.default.svc.cluster.local
-  #team_api_role_configuration: "log_statement:all"
-  #pam_configuration: |
-  #  https://info.example.com/oauth2/tokeninfo?access_token= uid realm=/employees
-  #pam_role_name: {{ .Values.operator.pam_role_name }}
 
   resource_check_interval: {{ .Values.operator.resource_check_interval | default "3s" }}
   resource_check_timeout: {{ .Values.operator.resource_check_timeout | default "10m" }}
@@ -76,7 +66,7 @@ data:
   api_port: {{ .Values.operator.api_port | default "8080" | quote }}
 
   # logging stuff
-  debug_logging: "true"
+  debug_logging: {{ .Values.operator.debug | default "true" | quote }}
   ring_log_lines: {{ .Values.operator.ring_log_lines | default "100" | quote }}
   cluster_history_entries: {{ .Values.operator.cluster_history_entries | default "1000" | quote }}
 
