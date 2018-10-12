@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pg-operator-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pg-operator-exporter
+      type: exporter
+  template:
+    metadata:
+      labels:
+        app: pg-operator-exporter
+        type: exporter
+    spec:
+      containers:
+      - name: pg-operator-exporter
+        image: "{{ .Values.global.imageRegistry }}/{{ .Values.exporterImage }}:{{ .Values.tag }}"
+        ports:
+        - containerPort: 9290
