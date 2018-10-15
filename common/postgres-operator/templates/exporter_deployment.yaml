@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: pg-operator-exporter
-        image: "{{ .Values.global.imageRegistry }}/{{ .Values.exporterImage }}:{{ .Values.tag }}"
+        image: "{{ .Values.global.imageRegistry }}/{{ .Values.exporter.image }}:{{ .Values.exporter.tag }}"
         ports:
         - containerPort: 9290
