@@ -12,7 +12,7 @@ data:
   watched_namespace: "*"
 
   # service-account of the operator
-  service_account_name: {{ .Values.serviceaccount.name | default "postgres-operator" }}
+  pod_service_account_name: {{ .Values.serviceaccount.name | default "postgres-operator" }}
 
   # database user names
   # name for the superuser, set during initialization (initdb) and later used by Patroni to connect to the postgres.
