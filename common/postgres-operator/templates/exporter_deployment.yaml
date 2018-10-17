@@ -21,6 +21,6 @@ spec:
         - name: PORT
           value: "9290"
         - name: OPERATOR_URL
-          value: http://postgres-operator-exporter:8080
+          value: http://postgres-operator-service:8080
         ports:
         - containerPort: 9290
