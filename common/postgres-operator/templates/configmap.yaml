@@ -3,13 +3,16 @@ kind: ConfigMap
 metadata:
   name: postgres-operator
 data:
-  # spilo image (patroni / postgres bundle)
-  docker_image: {{ .Values.operator.image }}:{{ .Values.operator.imageTag }}
-
   # the env var with the same name in the operator pod may overwrite this value
   # if neither is set or evaluates to the empty string, listen to the operator's own namespace
   # if set to the "*", listen to all namespaces
   watched_namespace: "*"
+  cluster_labels: application:spilo
+  cluster_name_label: version
+  pod_role_label: spilo-role
+
+  # spilo image (patroni / postgres bundle)
+  docker_image: {{ .Values.operator.image }}:{{ .Values.operator.imageTag }}
 
   # service-account of the operator
   pod_service_account_name: {{ .Values.serviceaccount.name | default "postgres-operator" }}
@@ -22,15 +25,12 @@ data:
   # naming format of k8s secrets that contain user/pwd credentials of db users
   secret_name_template: "{cluster}.{username}.credentials"
 
-  cluster_labels: application:spilo
-  cluster_name_label: version
-
   node_readiness_label: {{ .Values.operator.node_readiness_label | default "" }}
 
-  # pod-disruption-budget?
+  # pod-disruption-budget
   pdb_name_format: {{ .Values.operator.pdb_name_format | default "{cluster}-postgres-pdb" | quote }}
-  # pod lifecycle configuration settings
-  pod_role_label: spilo-role
+  
+  # pod lifecycle configuration settings: timeouts
   pod_deletion_wait_timeout: {{ .Values.operator.pod_deletion_wait_timeout | default "10m" }}
   pod_label_wait_timeout: {{ .Values.operator.pod_label_wait_timeout | default "10m" }}
   pod_terminate_grace_period: {{ .Values.operator.pod_terminate_grace_period | default "5m" }}
@@ -40,26 +40,18 @@ data:
   enable_master_load_balancer: "false"
   enable_replica_load_balancer: "false"
 
-  # service type 'load-balancer' related annotations?
-  #db_hosted_zone: db.example.com
-  #master_dns_name_format: '{cluster}.{team}.staging.{hostedzone}'
-  #replica_dns_name_format: '{cluster}-repl.{team}.staging.{hostedzone}'
-
-  etcd_host: ""
-  #infrastructure_roles_secret_name: postgresql-infrastructure-roles
-  #oauth_token_secret_name: postgres-operator
-
   # team-api settings
   # to enable oAuth postgres access
   enable_teams_api: "false"
   enable_team_superuser: "false"
 
+  # Cluster Sync config
   resource_check_interval: {{ .Values.operator.resource_check_interval | default "3s" }}
   resource_check_timeout: {{ .Values.operator.resource_check_timeout | default "10m" }}
-  resync_period: {{ .Values.operator.resync_period | default "5m" }}
+  resync_period: {{ .Values.operator.resync_period | default "10m" }}
+  repair_period: 5m
 
-  # number of go routines that process the cluster events: 
-  # https://github.com/zalando-incubator/postgres-operator/blob/6a29bbbcfad598b99020f34e3185c2db9070dd58/pkg/controller/controller.go#L224
+  # number of working routines the operator spawns to process requests to create/update/delete/sync clusters concurrently.
   workers: {{ .Values.operator.workers | default "4" | quote }}
 
   # Rest API for basic operator metrics
@@ -69,7 +61,3 @@ data:
   debug_logging: {{ .Values.operator.debug | default "true" | quote }}
   ring_log_lines: {{ .Values.operator.ring_log_lines | default "100" | quote }}
   cluster_history_entries: {{ .Values.operator.cluster_history_entries | default "1000" | quote }}
-
-  # Spilo configuration
-  #pod_environment_configmap: configmap-db-spilo
-  #wal_s3_bucket: d058695
