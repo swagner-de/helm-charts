@@ -1,12 +1,6 @@
 ## postgres-operator image repository
 image: monsoon/postgres-operator
-imageTag: "20180928130414"
-
-## Specify a imagePullPolicy
-## 'Always' if imageTag is 'latest', else set to 'IfNotPresent'
-## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
-##
-# imagePullPolicy:
+imageTag: "20181018081758"
 
 replicas: 1
 
