@@ -3,7 +3,6 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: maia
-  namespace: maia
   labels:
     system: openstack
     service: metrics
