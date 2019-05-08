@@ -1,0 +1,4 @@
+apiVersion: v1
+description: A Helm chart for Elastiflow
+name: elastiflow
+version: 0.1.0

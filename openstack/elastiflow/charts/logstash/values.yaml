@@ -1,0 +1,291 @@
+replicaCount: 2
+
+podDisruptionBudget:
+  maxUnavailable: 1
+
+updateStrategy:
+  type: RollingUpdate
+
+terminationGracePeriodSeconds: 30
+
+image:
+  repository: robcowart/elastiflow-logstash-oss
+  tag: 3.4.1_6.1.3
+  pullPolicy: IfNotPresent
+  ## Add secrets manually via kubectl on kubernetes cluster and reference here
+  #pullSecrets:
+  #- name: ""
+
+service:
+  type: NodePort
+  #loadBalancerIP: 10.2.2.2
+  # clusterIP: None
+  # nodePort:
+  # Set this to local, to preserve client source ip.  Default stripes out the source ip
+  # externalTrafficPolicy: Local
+  ### In case of metallb use shared ip between tcp and udp services (you cannot use both in a LB service)
+  #annotations:
+    #metallb.universe.tf/allow-shared-ip: elastiflow
+    ## AWS example for use with LoadBalancer service type.
+    # external-dns.alpha.kubernetes.io/hostname: logstash.cluster.local
+    # service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    # service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+  ports:
+    netflow-udp:
+      port: 2055
+      targetPort: netflow-udp
+      protocol: UDP
+    sflow-udp:
+      port: 6343
+      targetPort: sflow-udp
+      protocol: UDP
+    ipfix-udp:
+      port: 4739
+      targetPort: ipfix-udp
+      protocol: UDP
+ports:
+  - name: netflow-udp
+    containerPort: 2055
+    protocol: UDP
+  - name: sflow-udp
+    containerPort: 6343
+    protocol: UDP
+  - name: ipfix-udp
+    containerPort: 4739
+    protocol: UDP
+  - name: ipfix-tcp
+    containerPort: 4739
+    protocol: TCP
+#  - name: syslog-udp
+#    containerPort: 1514
+#    protocol: UDP
+#  - name: syslog-tcp
+#    containerPort: 1514
+#    protocol: TCP
+
+ingress:
+  enabled: false
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  path: /
+  hosts:
+    - logstash.cluster.local
+  tls: []
+  #  - secretName: logstash-tls
+  #    hosts:
+  #      - logstash.cluster.local
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  #  limits:
+  #   cpu: 4
+  #   memory: 4224Mi
+  #  requests:
+  #   cpu: 500m
+  #   memory: 3072Mi
+
+priorityClassName: ""
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  enabled: true
+  #weight: 10
+  ### logstash is the heavy lifter, if possible try to loadbalance between nodes as best as possible
+
+podAnnotations: {}
+  # iam.amazonaws.com/role: "logstash-role"
+  # prometheus.io/scrape: "true"
+  # prometheus.io/path: "/metrics"
+  # prometheus.io/port: "9198"
+
+podLabels: {}
+  # team: "developers"
+  #service: "logstash"
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: monitor
+  initialDelaySeconds: 600
+  periodSeconds: 30
+  timeoutSeconds: 30
+  failureThreshold: 10
+  successThreshold: 1
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: monitor
+  initialDelaySeconds: 500
+  periodSeconds: 30
+  timeoutSeconds: 30
+  failureThreshold: 6
+  successThreshold: 1
+
+### persistence not recommended - io can easily become a bottleneck and logstash will start dropping flow packets
+persistence:
+  enabled: false
+  ## logstash data Persistent Volume Storage Class
+  ## If defined, storageClassName: <storageClass>
+  ## If set to "-", storageClassName: "", which disables dynamic provisioning
+  ## If undefined (the default) or set to null, no storageClassName spec is
+  ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+  ##   GKE, AWS & OpenStack)
+  ##
+  # storageClass: "-"
+  accessMode: ReadWriteOnce
+  size: 2Gi
+
+volumeMounts:
+  - name: data
+    mountPath: /usr/share/logstash/data
+  - name: elastiflow-pipeline
+    mountPath: /usr/share/logstash/config/pipelines.yml
+    subPath: pipelines.yml
+  - name: logstash-jvm-options
+    mountPath: /usr/share/logstash/config/jvm.options
+    subPath: jvm.options
+#  - name: pipeline
+#    mountPath: /usr/share/logstash/pipeline
+
+volumes:
+  # - name: tls
+  #   secret:
+  #     secretName: logstash-tls
+  - name: elastiflow-pipeline
+    configMap:
+      name: elastiflow-pipeline
+      items:
+      - key: pipelines.yaml
+        path: pipelines.yml
+  # - name: certs
+  #   hostPath:
+  #     path: /tmp
+
+exporter:
+  logstash:
+    enabled: false
+    image:
+      repository: bonniernews/logstash_exporter
+      tag: v0.1.2
+      pullPolicy: IfNotPresent
+    env: {}
+    resources: {}
+    path: /metrics
+    port: 9198
+    target:
+      port: 9600
+      path: /metrics
+    livenessProbe:
+      httpGet:
+        path: /metrics
+        port: ls-exporter
+      periodSeconds: 15
+      timeoutSeconds: 60
+      failureThreshold: 8
+      successThreshold: 1
+    readinessProbe:
+      httpGet:
+        path: /metrics
+        port: ls-exporter
+      periodSeconds: 15
+      timeoutSeconds: 60
+      failureThreshold: 8
+      successThreshold: 1
+
+elasticsearch:
+### deprecated: generated as elasticsearch-client.$$namespace$$.svc.cluster.local
+#  host: elasticsearch-client.elastiflow.svc.cluster.local
+  port: 9200
+
+## ref: https://github.com/elastic/logstash-docker/blob/master/build/logstash/env2yaml/env2yaml.go
+config:
+  config.reload.automatic: "true"
+  #path.config: /usr/share/logstash/elastiflow/conf.d
+  path.data: /usr/share/logstash/data
+
+  ## ref: https://www.elastic.co/guide/en/logstash/current/persistent-queues.html
+  #queue.checkpoint.writes: 1
+  #queue.drain: "true"
+  #queue.max_bytes: 2gb  # disk capacity must be greater than the value of `queue.max_bytes`
+  #queue.type: persisted
+
+  ## global variable for elastiflow ref: https://github.com/robcowart/elastiflow/blob/master/INSTALL.md
+  #ELASTIFLOW_DICT_PATH: /usr/share/logstash/elastiflow/dictionaries
+  #ELASTIFLOW_TEMPLATE_PATH: /usr/share/logstash/elastiflow/templates
+  #ELASTIFLOW_GEOIP_DB_PATH: /usr/share/logstash/elastiflow/geoipdbs
+  #ELASTIFLOW_DEFINITION_PATH: /usr/share/logstash/elastiflow/definitions
+  ## set to true if wanted/reverse-lookups are available internatlly
+  ELASTIFLOW_RESOLVE_IP2HOST: false
+  ELASTIFLOW_NAMESERVER: "127.0.0.1"
+  ELASTIFLOW_DNS_HIT_CACHE_TTL: 900
+  ELASTIFLOW_DNS_FAILED_CACHE_TTL: 3600
+
+## Patterns for filters.
+## Each YAML heredoc will become a separate pattern file.
+#patterns:
+  # main: |-
+  #   TESTING {"foo":.*}$
+
+## NOTE: To achieve multiple pipelines with this chart, current best practice
+## is to maintain one pipeline per chart release. In this way configuration is
+## simplified and pipelines are more isolated from one another.
+
+#inputs:
+#  main: |-
+#    input {
+#      netflow {
+#        port => 2055
+#      }
+#      sflow {
+#        port => 6343
+#      }
+#      ipfix {
+#        port => 4739
+#      }
+#      # beats {
+#      #   port => 5044
+#      # }
+#      # http {
+#      #   port => 8080
+#      # }
+#      # kafka {
+#      #   ## ref: https://www.elastic.co/guide/en/logstash/current/plugins-inputs-kafka.html
+#      #   bootstrap_servers => "kafka-input:9092"
+#      #   codec => json { charset => "UTF-8" }
+#      #   consumer_threads => 1
+#      #   topics => ["source"]
+#      #   type => "example"
+#      # }
+#    }
+#
+#filters:
+#  # main: |-
+#  #   filter {
+#  #   }
+#
+#outputs:
+#  main: |-
+#    output {
+#      # stdout { codec => rubydebug }
+#      elasticsearch {
+#        hosts => ["${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"]
+#        manage_template => false
+#        index => "%{[@metadata][beat]}-%{+YYYY.MM.dd}"
+#        document_type => "%{[@metadata][type]}"
+#      }
+#      # kafka {
+#      #   ## ref: https://www.elastic.co/guide/en/logstash/current/plugins-outputs-kafka.html
+#      #   bootstrap_servers => "kafka-output:9092"
+#      #   codec => json { charset => "UTF-8" }
+#      #   compression_type => "lz4"
+#      #   topic_id => "destination"
+#      # }
+#    }
